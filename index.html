@@ -127,7 +127,8 @@ let hue = 200 - heat*1.4;
     let brightness = 40 + heat*0.3;
   mood+=(Math.random()*20 - 10);
   mood *=0,9;
-  let color = `hsl(${hue + mood*2},100%,${brightness}%)`;
+  let color = `hsl(${hue + mood},100%,${brightness}%)`;
+  ctx.fillStyle = color;
 
 pulse+=0.05;
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
