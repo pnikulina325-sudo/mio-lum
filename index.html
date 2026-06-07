@@ -123,6 +123,7 @@ localStorage.setItem("creatureState", JSON.stringify({
   }));
 
 let hue = 200 - heat*1.4;
+  hue+=(Math.random()*2-1);
     let brightness = 40 + heat*0.3;
   mood+=(Math.random()*20 - 10);
   mood *=0,9;
