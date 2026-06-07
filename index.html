@@ -123,8 +123,7 @@ localStorage.setItem("creatureState", JSON.stringify({
   }));
 
 let hue = 200 - heat*1.4;
-    
- let brightness = 40 + heat*0.3;
+    let brightness = 40 + heat*0.3;
   mood+=(Math.random()*20 - 10);
   let color = `hsl(${hue + mood*2},100%,${brightness}%)`;
 
