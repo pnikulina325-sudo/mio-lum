@@ -1,0 +1,185 @@
+06.06 01:57
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Световое существо v3</title>
+<style>
+body { margin:0; overflow:hidden; background:black; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+// ===== ПОЛОЖЕНИЕ (Объявляем ПЕРЕД памятью) =====
+let x = canvas.width/2;
+let y = canvas.height/2;
+let vx = 0;
+let vy = 0;
+let targetX = null;
+let targetY = null;
+let pulse = 0;
+
+// ===== ПАМЯТЬ =====
+let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
+let now = Date.now();
+
+let lastVisit = saved.lastVisit || now;
+let prevHeat = saved.heat !== undefined ? saved.heat : 50;
+
+let hoursAway = (now - lastVisit) / 1000 / 60 / 60;
+
+// остывание во времени
+let heat = prevHeat - hoursAway * 8;
+heat = Math.max(0, Math.min(100, heat));
+
+// если тебя не было больше 0.2 часа (~12 минут)
+if(hoursAway > 0.2){
+  // случайное новое положение
+  x = Math.random() * canvas.width;
+  y = Math.random() * canvas.height;
+
+// лёгкая смена характера через тепло
+  heat += hoursAway * 5;
+  heat = Math.max(0, Math.min(100, heat));
+}
+
+localStorage.setItem("creatureState", JSON.stringify({
+  lastVisit: now,
+  heat: heat
+}));
+
+// ===== ЧАСТИЦЫ =====
+class Spark {
+  constructor(x,y){
+    this.x=x;
+    this.y=y;
+    this.vx=(Math.random()-0.5)*4;
+    this.vy=(Math.random()-0.5)*4;
+    this.life=60;
+  }
+  update(){
+    this.x+=this.vx;
+    this.y+=this.vy;
+    this.life--;
+  }
+  draw(){
+    ctx.globalAlpha = this.life/60;
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+let sparks=[];
+
+function interact(px,py){
+  targetX=px;
+  targetY=py;
+  heat+=10;
+  heat=Math.min(100,heat);
+  for(let i=0;i<4;i++){
+    sparks.push(new Spark(x,y));
+  }
+}
+
+canvas.addEventListener("touchmove",e=>{
+  e.preventDefault();
+  for(let t of e.touches){
+    interact(t.clientX,t.clientY);
+  }
+},{passive:false});
+
+canvas.addEventListener("mousemove",e=>{
+  interact(e.clientX,e.clientY);
+});
+
+// ===== АНИМАЦИЯ =====
+function animate(){
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+heat-=0.02;
+  heat=Math.max(0,heat);
+
+localStorage.setItem("creatureState", JSON.stringify({
+    lastVisit: now,
+    heat: heat
+  }));
+
+let hue = 200 - heat*1.4;
+  let brightness = 40 + heat*0.3;
+  let color = `hsl(${hue},100%,${brightness}%)`;
+
+pulse+=0.05;
+  let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
+
+if(heat < 20){
+    x += (canvas.width/2 - x)*0.05;
+    y += (canvas.height/2 - y)*0.05;
+    vx=0;
+    vy=0;
+  }
+  else if(heat < 60){
+    vx += (Math.random()-0.5)*0.2;
+    vy += (Math.random()-0.5)*0.2;
+    vx*=0.98;
+    vy*=0.98;
+    x+=vx;
+    y+=vy;
+  }
+  else{
+    if(targetX!==null){
+      let dx=targetX-x;
+      let dy=targetY-y;
+      vx+=dx*0.002;
+      vy+=dy*0.002;
+    }
+    vx*=0.97;
+    vy*=0.97;
+    x+=vx;
+    y+=vy;
+  }
+
+if(x<0||x>canvas.width) vx*=-1;
+  if(y<0||y>canvas.height) vy*=-1;
+
+ctx.fillStyle=color;
+  
+  let speed = Math.sqrt(vx*vx + vy*vy);
+  let stretch = Math.min(20, speed * 1.5);
+  let radiusX = baseRadius + stretch;
+  let radiusY = baseRadius - stretch*0.6;
+
+ctx.beginPath();
+  ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI*2);
+  ctx.fill();
+
+sparks=sparks.filter(s=>s.life>0);
+  for(let s of sparks){
+    s.update();
+    s.draw();
+  }
+
+requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
+
