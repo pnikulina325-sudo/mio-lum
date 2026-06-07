@@ -147,7 +147,11 @@ if(heat < 20){
     x+=vx;
     y+=vy;
     let speed = Math.abs(vx)+Math.abs(vy);
-    mood = speed*50;
+        if(speed >0.3){
+          mood=40;
+        }else{
+          mood= 0.9
+        }
   }
   else{
     if(targetX!==null){
