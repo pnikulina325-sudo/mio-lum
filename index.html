@@ -145,6 +145,11 @@ if(heat < 20){
     vy*=0.98;
     x+=vx;
     y+=vy;
+    let speed=Math.abs(vx)+Math.abs(vy);
+    if(speed > 0.5){
+      mood+=(Math.random()*10-5);
+    }
+    mood*=0.95
   }
   else{
     if(targetX!==null){
