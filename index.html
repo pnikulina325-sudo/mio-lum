@@ -128,6 +128,7 @@ let hue = 200 - heat*1.4;
   mood+=(Math.random()*20 - 10);
   mood *=0,9;
   let color = `hsl(${hue + mood},100%,${brightness}%)`;
+  color="hsl("+(hue+mood)+",100%,"+brightness+"%)";
   ctx.fillStyle = color;
 
 pulse+=0.05;
