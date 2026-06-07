@@ -126,7 +126,7 @@ let hue = 200 - heat*1.4;
     hue +=(Math.random() * 20 - 10);
   let brightness = 40 + heat*0.3;
   mood+=(Math.random()*20 - 10);
-  let color = `hsl(${hue},100%,${brightness}%)`;
+  let color = `hsl(${hue + mood},100%,${brightness}%)`;
 
 pulse+=0.05;
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
