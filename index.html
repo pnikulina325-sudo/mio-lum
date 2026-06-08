@@ -115,38 +115,22 @@ function animate(){
 
 heat-=0.02;
   heat=Math.max(0,heat);
-
-localStorage.setItem("creatureState", JSON.stringify({
+  localStorage.setItem("creatureState", JSON.stringify({
     lastVisit: now,
     heat: heat
   }));
 
-let hue = 200 - heat*1.4;
-  hue+=(Math.random()*2-1);
-    let brightness = 40 + heat*0.3;
-  mood+=(Math.random()*20 - 10);
-  mood *=0,9;
-  let color = `hsl(${hue + mood},100%,${brightness}%)`;
-  color="hsl("+(hue+mood)+",100%,"+brightness+"%)";
-  ctx.fillStyle = color;
-
-pulse+=0.05;
-  let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
-
-if(heat < 20){
+// Движение (старая логика)
+  if(heat < 20){
     x += (canvas.width/2 - x)*0.05;
     y += (canvas.height/2 - y)*0.05;
-    vx=0;
-    vy=0;
+    vx=0; vy=0;
   }
   else if(heat < 60){
     vx += (Math.random()-0.5)*0.2;
     vy += (Math.random()-0.5)*0.2;
-    vx*=0.98;
-    vy*=0.98;
-    x+=vx;
-    y+=vy;
-    
+    vx*=0.98; vy*=0.98;
+    x+=vx; y+=vy;
   }
   else{
     if(targetX!==null){
@@ -155,25 +139,32 @@ if(heat < 20){
       vx+=dx*0.002;
       vy+=dy*0.002;
     }
-    vx*=0.97;
-    vy*=0.97;
-    x+=vx;
-    y+=vy;
+    vx*=0.97; vy*=0.97;
+    x+=vx; y+=vy;
   }
 
-if(x<0||x>canvas.width) vx*=-1;
+// Границы
+  if(x<0||x>canvas.width) vx*=-1;
   if(y<0||y>canvas.height) vy*=-1;
 
-ctx.fillStyle=color;
-  
+// === НОВАЯ ЛОГИКА ЦВЕТА ===
   let speed = Math.sqrt(vx*vx + vy*vy);
-  if(speed>1.5){
-    //режим полёта-мигаем
-    hue=Math.random()*360;
-  }else{
-    //режим покоя- спокойные зелёно-жёлтые
-    hue=80+Math.sin(pulse)*20;
+  let hue;
+  
+  if(speed > 1.5){
+    // Быстрый полёт — хаотичные цвета (мигание)
+    hue = Math.random() * 360;
+  } else {
+    // Покой — спокойный зелёно-жёлтый спектр
+    pulse += 0.05;
+    hue = 80 + Math.sin(pulse) * 40; 
   }
+
+let brightness = 40 + heat*0.3;
+  ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
+
+// Отрисовка тела
+  let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
   let stretch = Math.min(20, speed * 1.5);
   let radiusX = baseRadius + stretch;
   let radiusY = baseRadius - stretch*0.6;
@@ -182,7 +173,8 @@ ctx.beginPath();
   ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI*2);
   ctx.fill();
 
-sparks=sparks.filter(s=>s.life>0);
+// Частицы
+  sparks=sparks.filter(s=>s.life>0);
   for(let s of sparks){
     s.update();
     s.draw();
@@ -190,7 +182,6 @@ sparks=sparks.filter(s=>s.life>0);
 
 requestAnimationFrame(animate);
 }
-
 animate();
 </script>
 </body>
