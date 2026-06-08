@@ -30,7 +30,7 @@ let vx = 0;
 let vy = 0;
 let targetX = null;
 let targetY = null;
-let pulse = 0;
+let hueCycle += 0.5;
 
 // ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
@@ -110,6 +110,7 @@ canvas.addEventListener("mousemove",e=>{
 
 // ===== АНИМАЦИЯ =====
 function animate(){
+  hyeCycle +=0.5;
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -151,7 +152,19 @@ heat-=0.02;
   pulse += 0.03;  // медленно, чтобы "дышал"
 
   let speed = Math.sqrt(vx*vx + vy*vy);
-  let hue;
+let hue;
+
+if(speed > 1.5){
+  // Полёт: случайный цвет каждый кадр (диско)
+  hue = Math.random() * 360;
+} else {
+  // Покой: медленно ползём по кругу (радуга)
+  // Начинаем с жёлтого (60), идём к зелёному, синему, красному...
+  hue = (hueCycle + 60) % 360; 
+}
+
+let brightness = 40 + heat*0.3;
+ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
   
   if(speed > 1.5){
     // Быстрый полёт — хаотичные цвета (мигание)
