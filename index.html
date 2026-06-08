@@ -150,14 +150,6 @@ heat-=0.02;
 // === НОВАЯ ЛОГИКА ЦВЕТА ===
   pulse += 0.03;  // медленно, чтобы "дышал"
 
-let speed = Math.sqrt(vx*vx + vy*vy);
-let hue;
-
-if(speed > 1.5){
-  hue = Math.random() * 360;
-} else {
-  hue = 40 + (Math.sin(pulse) + 1) * 110;
-}
   let speed = Math.sqrt(vx*vx + vy*vy);
   let hue;
   
