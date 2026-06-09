@@ -45,6 +45,7 @@ let lastInteractionHeat = 0;     // Последний уровень тепла
 let graceMode = false;            // Режим "спасибо"
 let graceModeStartTime = null;    // Когда начался режим спасибо
 let graceModeTriggered = false;   // Был ли уже спасибо в этой сессии
+let graceProgress = 0;            // 0-1: прогресс плавного входа/выхода из режима
 
 // ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
@@ -176,6 +177,7 @@ function animate(){
         graceMode = true;
         graceModeStartTime = nowTime;
         graceModeTriggered = true; // Только один раз за сессию
+        graceProgress = 0;
       }
     }
     
@@ -188,18 +190,28 @@ function animate(){
     let graceDuration = nowTime - graceModeStartTime;
     let graceDurationSeconds = graceDuration / 1000;
     
-    // Замираем на 2-3 секунды
-    if(graceDurationSeconds < 2.5){
-      // Режим спасибо активен
-      vx = 0;
-      vy = 0;
-      // Тепло немного повышается (как тепло благодарности)
-      heat = Math.min(100, heat + 5);
+    // Плавный вход (0.3 сек), пауза (2 сек), плавный выход (0.3 сек)
+    if(graceDurationSeconds < 0.3){
+      // Плавный вход
+      graceProgress = graceDurationSeconds / 0.3;
+    } else if(graceDurationSeconds < 2.3){
+      // Полная пауза
+      graceProgress = 1.0;
+    } else if(graceDurationSeconds < 2.6){
+      // Плавный выход
+      graceProgress = 1.0 - ((graceDurationSeconds - 2.3) / 0.3);
     } else {
-      // Переходим обратно в нормальный режим
+      // Режим спасибо закончился
       graceMode = false;
+      graceProgress = 0;
       interactionStartTime = null;
     }
+    
+    // Замираем
+    vx = 0;
+    vy = 0;
+  } else {
+    graceProgress *= 0.95; // Плавное затухание
   }
   
   // === РАССТОЯНИЕ ДО КРАЯ ===
@@ -274,26 +286,33 @@ function animate(){
 
   let speed = Math.sqrt(vx*vx + vy*vy);
   let hue;
-  let sizeMultiplier = 1.0; // Для режима спасибо
+  let sizeMultiplier = 1.0;
 
-  if(graceMode){
-    // === РЕЖИМ СПАСИБО: мягкое золотое дыхание ===
-    hue = 45 + Math.sin(pulse * 1.5) * 5; // Мягкое золото (45°)
-    sizeMultiplier = 0.85 + Math.sin(pulse * 1.5) * 0.1; // Плавное пульсирование (0.75-0.95)
-  } else if(speed > 1.5){
+  // Определяем базовый цвет (без режима спасибо)
+  if(speed > 1.5){
     // Движение: плавный переход по радуге
     movementHue += speed * 0.5;
     hue = movementHue % 360;
   } else {
     // Покой: медленно ползём по радуге
     if(heat < 20){
-      // Засыпание: холодный синий (как во сне)
+      // Засыпание: холодный синий
       hue = 240 + Math.sin(pulse) * 10;
     } else {
       let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
       let edgeHue = 240;
       hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
     }
+  }
+
+  // === ПРИМЕНЯЕМ РЕЖИМ СПАСИБО (плавно интерполируем) ===
+  if(graceProgress > 0){
+    // Плавный переход к золотому дыханию
+    let graceHue = 45 + Math.sin(pulse * 1.5) * 5; // Золото
+    hue = hue * (1 - graceProgress) + graceHue * graceProgress;
+    
+    // Плавное уменьшение размера
+    sizeMultiplier = 1.0 - (0.15 * graceProgress); // До 0.85
   }
 
   let brightness = 40 + heat*0.3;
