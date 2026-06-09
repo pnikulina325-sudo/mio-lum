@@ -10,6 +10,22 @@ canvas { display:block; }
 </head>
 <body>
 <canvas id="canvas"></canvas>
+ <script type="module">
+  import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
+  
+  // Запускаем загрузку модели сразу
+  let classifier;
+  async function loadModel() {
+    console.log("Загружаю мозг для Люма...");
+    classifier = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+    console.log("Мозг загружен! Люм готов чувствовать.");
+  }
+  
+  loadModel();
+  
+  // Делаем classifier доступным для остального кода
+  window.getClassifier = () => classifier;
+</script> 
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
