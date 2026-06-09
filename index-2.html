@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Световое существо v3</title>
+<style>
+body { margin:0; overflow:hidden; background:black; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+  
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+// ===== ПОЛОЖЕНИЕ =====
+let x = canvas.width/2;
+let y = canvas.height/2;
+let vx = 0;
+let vy = 0;
+let targetX = null;
+let targetY = null;
+let wanderTargetX = null;
+let wanderTargetY = null;
+let lastMouseMove = Date.now(); 
+let hueCycle = 0;
+let pulse = 0;
+let movementHue = 0;
+let mouseSpeed = 0;
+let isMobile = false;  
+let oldMouseX = null;
+let oldMouseY = null;
+  
+
+// ===== ПАМЯТЬ О ЛЮБИМЫХ МЕСТАХ =====
+let favoriteSpots = [];
+
+// ===== ПАМЯТЬ О ВЗАИМОДЕЙСТВИИ =====
+let interactionStartTime = null;
+let lastInteractionHeat = 0;
+let graceMode = false;
+let graceModeStartTime = null;
+let graceModeTriggered = false;
+let graceProgress = 0;
+
+// ===== НОВОЕ: ПОВЕДЕНИЕ И АКТИВНОСТЬ =====
+let behaviorMode = "wander";
+let behaviorTimer = 0;
+let behaviorDuration = 0;
+let spiralPhase = 0;
+let twinklePulse = 0;
+let huntTarget = null;
+
+// ===== ПАМЯТЬ =====
+let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
+let now = Date.now();
+
+let lastVisit = saved.lastVisit || now;
+let prevHeat = saved.heat !== undefined ? saved.heat : 50;
+
+let hoursAway = (now - lastVisit) / 1000 / 60 / 60;
+
+let heat = prevHeat - hoursAway * 8;
+heat = Math.max(0, Math.min(100, heat));
+
+if(hoursAway > 0.2){
+  x = Math.random() * canvas.width;
+  y = Math.random() * canvas.height;
+  heat += hoursAway * 5;
+  heat = Math.max(0, Math.min(100, heat));
+}
+
+localStorage.setItem("creatureState", JSON.stringify({
+  lastVisit: now,
+  heat: heat
+}));
+
+// ===== ЧАСТИЦЫ =====
+class Spark {
+  constructor(x,y){
+    this.x=x;
+    this.y=y;
+    this.vx=(Math.random()-0.5)*4;
+    this.vy=(Math.random()-0.5)*4;
+    this.life=60;
+  }
+  update(){
+    this.x+=this.vx;
+    this.y+=this.vy;
+    this.life--;
+  }
+  draw(){
+    ctx.globalAlpha = this.life/60;
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+let sparks=[];
+
+function interact(px,py){
+  if(oldMouseX!==null){
+    let dx = px - oldMouseX;
+    let dy = py - oldMouseY;
+    mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+  }
+  oldMouseX= px;
+  oldMouseY= py;
+  targetX=px;
+  targetY=py;
+  lastMouseMove = Date.now();
+  
+  if(interactionStartTime === null){
+    interactionStartTime = Date.now();
+  }
+  lastInteractionHeat = heat;
+  
+  heat+=10;
+  heat=Math.min(100,heat);
+  
+  if(Math.random() < 0.1){
+    favoriteSpots.push({x: px, y: py});
+    if(favoriteSpots.length > 30) favoriteSpots.shift();
+  }
+  
+  for(let i=0;i<4;i++){
+    sparks.push(new Spark(x,y));
+  }
+}
+
+canvas.addEventListener("touchmove",e=>{
+  e.preventDefault();
+  for(let t of e.touches){
+    isMobile = true
+    interact(t.clientX,t.clientY);
+  }
+},{passive:false});
+
+canvas.addEventListener("mousemove",e=>{
+  interact(e.clientX,e.clientY);
+});
+
+function getDistanceToEdge(x, y, width, height){
+  let distLeft = x;
+  let distRight = width - x;
+  let distTop = y;
+  let distBottom = height - y;
+  return Math.min(distLeft, distRight, distTop, distBottom);
+}
+
+function pickNewBehavior(){
+  let modes = ["wander", "spiral", "hunt", "dance"];
+  behaviorMode = modes[Math.floor(Math.random() * modes.length)];
+  behaviorTimer = 0;
+  behaviorDuration = 300 + Math.random() * 400; // УВЕЛИЧИЛ: 5-10 секунд вместо 2-4
+  
+  if(behaviorMode === "hunt"){
+    let edges = ["top", "bottom", "left", "right"];
+    let edge = edges[Math.floor(Math.random() * edges.length)];
+    if(edge === "top") huntTarget = {x: canvas.width/2, y: 50};
+    else if(edge === "bottom") huntTarget = {x: canvas.width/2, y: canvas.height - 50};
+    else if(edge === "left") huntTarget = {x: 50, y: canvas.height/2};
+    else huntTarget = {x: canvas.width - 50, y: canvas.height/2};
+  }
+  
+  if(behaviorMode === "spiral"){
+    spiralPhase = 0;
+  }
+}
+
+function animate(){
+  hueCycle += 0.5;
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  heat-=0.02; // ЗАМЕДЛИЛ: было 0.1, теперь 0.02 (в 5 раз медленнее)
+  heat=Math.max(0,heat);
+  localStorage.setItem("creatureState", JSON.stringify({
+    lastVisit: now,
+    heat: heat
+  }));
+  
+  let nowTime = Date.now();
+  let mouseIdle = nowTime - lastMouseMove > 15000;
+  
+  if(interactionStartTime !== null && mouseIdle && !graceMode && !graceModeTriggered){
+    let interactionDuration = nowTime - interactionStartTime;
+    let interactionMinutes = interactionDuration / 1000 / 60;
+    
+    if(interactionMinutes >= 3){
+      if(Math.random() < 0.3){
+        graceMode = true;
+        graceModeStartTime = nowTime;
+        graceModeTriggered = true;
+        graceProgress = 0;
+      }
+    }
+    
+    interactionStartTime = null;
+  }
+  
+  if(graceMode){
+    let graceDuration = nowTime - graceModeStartTime;
+    let graceDurationSeconds = graceDuration / 1000;
+    
+    if(graceDurationSeconds < 0.3){
+      graceProgress = graceDurationSeconds / 0.3;
+    } else if(graceDurationSeconds < 2.3){
+      graceProgress = 1.0;
+    } else if(graceDurationSeconds < 2.6){
+      graceProgress = 1.0 - ((graceDurationSeconds - 2.3) / 0.3);
+    } else {
+      graceMode = false;
+      graceProgress = 0;
+      interactionStartTime = null;
+    }
+    
+    vx = 0;
+    vy = 0;
+  } else {
+    graceProgress *= 0.95;
+  }
+  
+  let distToEdge = getDistanceToEdge(x, y, canvas.width, canvas.height);
+  let maxDist = Math.min(canvas.width, canvas.height) / 3;
+  let edgeFactor = Math.max(0, 1 - distToEdge / maxDist);
+  
+  if(!graceMode){
+    if(mouseIdle && heat > 20){
+      behaviorTimer++;
+      if(behaviorTimer > behaviorDuration){
+        pickNewBehavior();
+      }
+      
+      if(behaviorMode === "wander"){
+        if(wanderTargetX === null){
+          if(favoriteSpots.length > 0 && Math.random() < 0.5){
+            let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
+            wanderTargetX = spot.x;
+            wanderTargetY = spot.y;
+          } else {
+            wanderTargetX = Math.random() * canvas.width;
+            wanderTargetY = Math.random() * canvas.height;
+          }
+        }
+
+        let dx = wanderTargetX - x;
+        let dy = wanderTargetY - y;
+        let acceleration = 0.001 + edgeFactor * 0.0005;
+        vx += dx * acceleration;
+        vy += dy * acceleration;
+
+        if(Math.abs(dx) < 20 && Math.abs(dy) < 20){
+          wanderTargetX = null;
+          wanderTargetY = null;
+        }
+      }
+      else if(behaviorMode === "spiral"){
+        spiralPhase += 0.05;
+        let spiralRadius = 100 + Math.sin(spiralPhase) * 50;
+        let spiralX = x + Math.cos(spiralPhase) * spiralRadius;
+        let spiralY = y + Math.sin(spiralPhase) * spiralRadius;
+        let dx = spiralX - x;
+        let dy = spiralY - y;
+        vx += dx * 0.001;
+        vy += dy * 0.001;
+      }
+      else if(behaviorMode === "hunt"){
+        let dx = huntTarget.x - x;
+        let dy = huntTarget.y - y;
+        vx += dx * 0.002;
+        vy += dy * 0.002;
+      }
+      else if(behaviorMode === "dance"){
+        let dancePhase = behaviorTimer * 0.02;
+        let danceRadius = 80;
+        let danceCenterX = canvas.width/2;
+        let danceCenterY = canvas.height/2;
+        let targetDanceX = danceCenterX + Math.cos(dancePhase) * danceRadius;
+        let targetDanceY = danceCenterY + Math.sin(dancePhase) * danceRadius;
+        let dx = targetDanceX - x;
+        let dy = targetDanceY - y;
+        vx += dx * 0.001;
+        vy += dy * 0.001;
+      }
+
+      vx *= 0.97;
+      vy *= 0.97;
+      x += vx;
+      y += vy;
+      
+    } else {
+      if(heat < 20){
+        x += (canvas.width/2 - x)*0.01;
+        y += (canvas.height/2 - y)*0.01;
+        vx=0; vy=0;
+      }
+      else if(heat < 60){
+        vx += (Math.random()-0.5)*0.2;
+        vy += (Math.random()-0.5)*0.2;
+        vx*=0.98; vy*=0.98;
+        x+=vx; y+=vy;
+      }
+      else{
+        if(targetX!==null){
+  let dx=targetX-x;
+  let dy=targetY-y;
+  
+  // Если двигаешь резко (скорость > 20), он пугается и отлетает
+  let threshold = isMobile ? 50 : 20; // На телефоне нужно дёрнуть сильнее, чтобы напугать
+
+if(mouseSpeed > threshold){
+  vx -= dx * 0.003;
+  vy -= dy * 0.003;
+} else {
+    // Иначе летит как обычно
+    vx += dx * 0.002;
+    vy += dy * 0.002;
+  }
+}
+        vx*=0.97; vy*=0.97;
+        x+=vx; y+=vy;
+      }
+    }
+  }
+
+  if(x < 0){ x = 0; vx *= -1; }
+  if(x > canvas.width){ x = canvas.width; vx *= -1; }
+  if(y < 0){ y = 0; vy *= -1; }
+  if(y > canvas.height){ y = canvas.height; vy *= -1; }
+
+  pulse += 0.03;
+  twinklePulse += 0.1;
+
+  let speed = Math.sqrt(vx*vx + vy*vy);
+  let hue;
+  let sizeMultiplier = 1.0;
+  let brightness = 40 + heat*0.3;
+  let hour = new Date().getHours();
+  let dayFactor = (hour >=6 && hour<20)? 1:0.6;
+  brightness *= dayFactor;
+
+  let twinkle = 1 + Math.sin(twinklePulse) * 0.2;
+  
+  if(speed > 1.5){
+    movementHue += speed * 0.5;
+    hue = movementHue % 360;
+    brightness = (40 + heat*0.3) * twinkle;
+  } else {
+    if(heat < 50){
+      hue = 240 + Math.sin(pulse) * 10;
+    } else {
+      let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
+      let edgeHue = 240;
+      hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
+    }
+  }
+
+  if(graceProgress > 0){
+    let graceHue = 45 + Math.sin(pulse * 1.5) * 5;
+    hue = hue * (1 - graceProgress) + graceHue * graceProgress;
+    sizeMultiplier = 1.0 - (0.15 * graceProgress);
+  }
+
+  ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
+
+  let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
+  let stretch = Math.min(20, speed * 1.5);
+  let radiusX = (baseRadius + stretch) * sizeMultiplier;
+  let radiusY = (baseRadius - stretch*0.6) * sizeMultiplier;
+
+  ctx.beginPath();
+  ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI*2);
+  ctx.fill();
+
+  sparks=sparks.filter(s=>s.life>0);
+  for(let s of sparks){
+    s.update();
+    s.draw();
+  }
+
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>
