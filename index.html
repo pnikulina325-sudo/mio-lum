@@ -318,6 +318,7 @@ function animate(){
   
   // Если двигаешь резко (скорость > 20), он пугается и отлетает
   if(mouseSpeed > 20){
+    scaredLevel = 1;
     vx -= dx * 0.003; // Отталкивание
     vy -= dy * 0.003;
   } else {
