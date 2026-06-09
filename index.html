@@ -191,19 +191,22 @@ function animate(){
     y += vy;
     
   } else {
-    // РЕЖИМ: Старая логика (с курсором или случайное)
+    // РЕЖИМ: Успокоение и засыпание
     if(heat < 20){
+      // ЗАСЫПАНИЕ: медленно возвращается в центр экрана
       x += (canvas.width/2 - x)*0.05;
       y += (canvas.height/2 - y)*0.05;
       vx=0; vy=0;
     }
     else if(heat < 60){
+      // ДРЕМОТА: лёгкое случайное движение
       vx += (Math.random()-0.5)*0.2;
       vy += (Math.random()-0.5)*0.2;
       vx*=0.98; vy*=0.98;
       x+=vx; y+=vy;
     }
     else{
+      // АКТИВНОСТЬ: следит за курсором
       if(targetX!==null){
         let dx=targetX-x;
         let dy=targetY-y;
