@@ -51,7 +51,8 @@ let targetX = null;
 let targetY = null;
 let wanderTargetX = null;
 let wanderTargetY = null;
-let lastMouseMove = Date.now(); 
+let lastMouseMove = Date.now();
+let moodLocked= false;
 let hueCycle = 0;
 let pulse = 0;
 let movementHue = 0;
@@ -201,7 +202,9 @@ function pickNewBehavior(){
 }
 
 function animate(){
+    if(!moodLocked){
   hueCycle += 0.5;
+    }
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -431,6 +434,7 @@ input.addEventListener('keydown', async (e) => {
 } else {
     hueCucle =210; //Синь
 }
+    moodLocked= true;
       
       // ТУТ БУДЕТ МАГИЯ ЦВЕТА
       // Пока просто напишем в консоль
