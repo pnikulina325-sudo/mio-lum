@@ -322,17 +322,12 @@ function animate(){
   let threshold = isMobile ? 50 : 20; // На телефоне нужно дёрнуть сильнее, чтобы напугать
 
 if(mouseSpeed > threshold){
-  scaredLevel = 1;
   vx -= dx * 0.003;
   vy -= dy * 0.003;
-}{
-    vx -= dx * 0.003; // Отталкивание
-    vy -= dy * 0.003;
-  } else {
-    // Иначе летит как обычно
-    vx += dx * 0.002;
-    vy += dy * 0.002;
-  }
+} else {
+  vx += dx * 0.002;
+  vy += dy * 0.002;
+}
 }
         vx*=0.97; vy*=0.97;
         x+=vx; y+=vy;
