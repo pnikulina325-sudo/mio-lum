@@ -427,9 +427,9 @@ input.addEventListener('keydown', async (e) => {
       const result = await classifier(text);
       console.log("Реакция Люма:", result);
     if (result[0].label === 'POSITIVE') {
-    baseColor = 'gold';
+    hueCucle =50; //Золото
 } else {
-    baseColor = 'deepskyblue';
+    hueCucle =210; //Синь
 }
       
       // ТУТ БУДЕТ МАГИЯ ЦВЕТА
