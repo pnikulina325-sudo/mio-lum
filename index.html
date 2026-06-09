@@ -202,6 +202,13 @@ function pickNewBehavior(){
 }
 
 function animate(){
+ // Если настроение зафиксировано — не трогаем hue вообще
+if (moodLocked) {
+    // Просто пропускаем все вычисления цвета в этом кадре
+} else {
+    // Тут твои старые формулы: hue = hueCycle + ...
+    hue = hueCycle; 
+}
     if(!moodLocked){
   hueCycle += 0.5;
     }
