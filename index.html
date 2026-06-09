@@ -426,7 +426,7 @@ input.addEventListener('keydown', async (e) => {
     if (classifier) {
       const result = await classifier(text);
       console.log("Реакция Люма:", result);
-     if (result[0].label === 'POSITIVE') {
+    if (result[0].label === 'POSITIVE') {
     baseColor = 'gold';
 } else {
     baseColor = 'deepskyblue';
