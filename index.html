@@ -151,7 +151,7 @@ function pickNewBehavior(){
   let modes = ["wander", "spiral", "hunt", "dance"];
   behaviorMode = modes[Math.floor(Math.random() * modes.length)];
   behaviorTimer = 0;
-  behaviorDuration = 120 + Math.random() * 240;
+  behaviorDuration = 300 + Math.random() * 400; // УВЕЛИЧИЛ: 5-10 секунд вместо 2-4
   
   if(behaviorMode === "hunt"){
     let edges = ["top", "bottom", "left", "right"];
@@ -172,7 +172,7 @@ function animate(){
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  heat-=0.1;
+  heat-=0.02; // ЗАМЕДЛИЛ: было 0.1, теперь 0.02 (в 5 раз медленнее)
   heat=Math.max(0,heat);
   localStorage.setItem("creatureState", JSON.stringify({
     lastVisit: now,
