@@ -179,7 +179,6 @@ function pickNewBehavior(){
 }
 
 function animate(){
-  scaredLevel *= 0.98;
   hueCycle += 0.5;
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -319,7 +318,6 @@ function animate(){
   
   // Если двигаешь резко (скорость > 20), он пугается и отлетает
   if(mouseSpeed > 20){
-    scaredLevel = 1;
     vx -= dx * 0.003; // Отталкивание
     vy -= dy * 0.003;
   } else {
@@ -369,6 +367,7 @@ function animate(){
     hue = hue * (1 - graceProgress) + graceHue * graceProgress;
     sizeMultiplier = 1.0 - (0.15 * graceProgress);
   }
+
   ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
 
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
