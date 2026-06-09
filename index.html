@@ -29,6 +29,9 @@ let vx = 0;
 let vy = 0;
 let targetX = null;
 let targetY = null;
+let wanderTargetX = null;
+let wanderTargetY = null;
+let lastMouseMove = Date.now(); 
 let hueCycle = 0;
 let pulse = 0;
 
@@ -120,7 +123,32 @@ function animate(){
     lastVisit: now,
     heat: heat
   }));
+  let nowTime = Date.now();
+let mouseIdle = nowTime - lastMouseMove > 2000;
 
+if(mouseIdle && heat > 40){
+  if(wanderTargetX === null){
+    wanderTargetX = Math.random() * canvas.width;
+    wanderTargetY = Math.random() * canvas.height;
+  }
+
+let dx = wanderTargetX - x;
+  let dy = wanderTargetY - y;
+
+vx += dx * 0.002;
+  vy += dy * 0.002;
+
+if(Math.abs(dx) < 10 && Math.abs(dy) < 10){
+    wanderTargetX = null;
+    wanderTargetY = null;
+  }
+
+vx *= 0.97;
+  vy *= 0.97;
+  x += vx;
+  y += vy;
+
+} else
   // Движение (старая логика)
   if(heat < 20){
     x += (canvas.width/2 - x)*0.05;
