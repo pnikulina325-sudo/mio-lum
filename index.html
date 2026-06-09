@@ -52,7 +52,6 @@ let targetY = null;
 let wanderTargetX = null;
 let wanderTargetY = null;
 let lastMouseMove = Date.now();
-let moodLocked= false;
 let hueCycle = 0;
 let pulse = 0;
 let movementHue = 0;
@@ -80,6 +79,9 @@ let behaviorDuration = 0;
 let spiralPhase = 0;
 let twinklePulse = 0;
 let huntTarget = null;
+let moodHue = null;
+let moodTimer = 0;
+const MOOD_DURATION = 300;
 
 // ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
@@ -202,16 +204,7 @@ function pickNewBehavior(){
 }
 
 function animate(){
- // Если настроение зафиксировано — не трогаем hue вообще
-if (moodLocked) {
-    // Просто пропускаем все вычисления цвета в этом кадре
-} else {
-    // Тут твои старые формулы: hue = hueCycle + ...
-    hue = hueCycle; 
-}
-    if(!moodLocked){
-  hueCycle += 0.5;
-    }
+  hueCycle+= 0.5;
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -396,7 +389,11 @@ if(mouseSpeed > threshold){
       hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
     }
   }
-
+  if(moodTimer > 0){
+  let moodStrength = moodTimer / MOOD_DURATION;
+  hue = hue * (1 - moodStrength) + moodHue * moodStrength;
+  moodTimer--;
+}
   if(graceProgress > 0){
     let graceHue = 45 + Math.sin(pulse * 1.5) * 5;
     hue = hue * (1 - graceProgress) + graceHue * graceProgress;
@@ -436,12 +433,8 @@ input.addEventListener('keydown', async (e) => {
     if (classifier) {
       const result = await classifier(text);
       console.log("Реакция Люма:", result);
-    if (result[0].label === 'POSITIVE') {
-    hue =50; //Золото
-} else {
-    hue =210; //Синь
-}
-    moodLocked= true;
+    moodHue = (result[0].label === 'POSITIVE') ? 50 : 210;
+moodTimer = MOOD_DURATION;
       
       // ТУТ БУДЕТ МАГИЯ ЦВЕТА
       // Пока просто напишем в консоль
