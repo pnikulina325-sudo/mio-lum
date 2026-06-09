@@ -10,6 +10,10 @@ canvas { display:block; }
 </head>
 <body>
 <canvas id="canvas"></canvas>
+ <input type="text" id="moodInput" placeholder="Напиши Люму что-нибудь..." 
+style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+padding: 10px; font-size: 16px; border-radius: 20px; border: none; outline: none; 
+background: rgba(255,255,255,0.9); width: 80%; max-width: 400px; text-align: center;">
  <script type="module">
   import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
   
@@ -409,6 +413,25 @@ if(mouseSpeed > threshold){
   requestAnimationFrame(animate);
 }
 animate();
+ const input = document.getElementById('moodInput');
+input.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter') {
+    const text = input.value;
+    if (!text) return;
+    
+    console.log("Отправляю Люму:", text);
+    input.value = ''; // очистить поле
+    
+    const classifier = window.getClassifier();
+    if (classifier) {
+      const result = await classifier(text);
+      console.log("Реакция Люма:", result);
+      
+      // ТУТ БУДЕТ МАГИЯ ЦВЕТА
+      // Пока просто напишем в консоль
+    }
+  }
+});
 </script>
  <script type="module">
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
