@@ -323,6 +323,9 @@ function animate(){
   let hue;
   let sizeMultiplier = 1.0;
   let brightness = 40 + heat*0.3;
+  let hour = new Date().getHours();
+  let dayFactor = (hour >=6 && hour<20)? 1:0.6;
+  brightness *= dayFactor;
 
   let twinkle = 1 + Math.sin(twinklePulse) * 0.2;
   
