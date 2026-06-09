@@ -180,7 +180,7 @@ function animate(){
   }));
   
   let nowTime = Date.now();
-  let mouseIdle = nowTime - lastMouseMove > 3000;
+  let mouseIdle = nowTime - lastMouseMove > 15000;
   
   if(interactionStartTime !== null && mouseIdle && !graceMode && !graceModeTriggered){
     let interactionDuration = nowTime - interactionStartTime;
@@ -290,8 +290,8 @@ function animate(){
       
     } else {
       if(heat < 20){
-        x += (canvas.width/2 - x)*0.05;
-        y += (canvas.height/2 - y)*0.05;
+        x += (canvas.width/2 - x)*0.01;
+        y += (canvas.height/2 - y)*0.01;
         vx=0; vy=0;
       }
       else if(heat < 60){
@@ -331,7 +331,7 @@ function animate(){
     hue = movementHue % 360;
     brightness = (40 + heat*0.3) * twinkle;
   } else {
-    if(heat < 20){
+    if(heat -=0.005;){
       hue = 240 + Math.sin(pulse) * 10;
     } else {
       let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
