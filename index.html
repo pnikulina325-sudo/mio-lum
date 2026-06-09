@@ -62,6 +62,7 @@ let oldMouseY = null;
   
 
 // ===== ПАМЯТЬ О ЛЮБИМЫХ МЕСТАХ =====
+let confidence= parseFloat(localStorage.getltem("lumConfidence"))||0.5;
 let favoriteSpots = [];
 
 // ===== ПАМЯТЬ О ВЗАИМОДЕЙСТВИИ =====
@@ -211,9 +212,18 @@ function animate(){
   heat-=0.02; // ЗАМЕДЛИЛ: было 0.1, теперь 0.02 (в 5 раз медленнее)
   heat=Math.max(0,heat);
   localStorage.setItem("creatureState", JSON.stringify({
+    // Обновляем уверенность
+  if (mouseSpeed < 5) {
+      confidence += 0.0005;
+  } else {
+      confidence -= 0.002;
+  }
+  confidence = Math.max(0, Math.min(1, confidence));
+  localStorage.setItem("lumConfidence", confidence);
     lastVisit: now,
     heat: heat
   }));
+ 
   
   let nowTime = Date.now();
   let mouseIdle = nowTime - lastMouseMove > 15000;
