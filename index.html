@@ -159,9 +159,9 @@ function animate(){
   // === ЛОГИКА ДВИЖЕНИЯ ===
   if(mouseIdle && heat > 20){ // Блуждание срабатывает даже при heat > 20
     // РЕЖИМ: Исследование
-    if(wanderTargetX === null){
+  if(wanderTargetX === null){
 
-if(favoriteSpots.length > 0 && Math.random() < 0.5){
+  if(favoriteSpots.length > 0 && Math.random() < 0.5){
     let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
     wanderTargetX = spot.x;
     wanderTargetY = spot.y;
