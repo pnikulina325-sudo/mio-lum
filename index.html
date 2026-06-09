@@ -39,6 +39,13 @@ let movementHue = 0; // Плавный переход цвета при движ
 // ===== ПАМЯТЬ О ЛЮБИМЫХ МЕСТАХ =====
 let favoriteSpots = [];
 
+// ===== ПАМЯТЬ О ВЗАИМОДЕЙСТВИИ (для реакции "спасибо") =====
+let interactionStartTime = null; // Когда началось активное взаимодействие
+let lastInteractionHeat = 0;     // Последний уровень тепла
+let graceMode = false;            // Режим "спасибо"
+let graceModeStartTime = null;    // Когда начался режим спасибо
+let graceModeTriggered = false;   // Был ли уже спасибо в этой сессии
+
 // ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
 let now = Date.now();
@@ -98,6 +105,13 @@ function interact(px,py){
   targetX=px;
   targetY=py;
   lastMouseMove = Date.now(); // Обновляем время последнего движения
+  
+  // === ОТСЛЕЖИВАНИЕ ВЗАИМОДЕЙСТВИЯ ===
+  if(interactionStartTime === null){
+    interactionStartTime = Date.now(); // Начало активного взаимодействия
+  }
+  lastInteractionHeat = heat;
+  
   heat+=10;
   heat=Math.min(100,heat);
   
@@ -140,7 +154,7 @@ function animate(){
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  heat-=0.1; // УСКОРИЛИ остывание (было 0.02, теперь 0.1)
+  heat-=0.1; // Остывание
   heat=Math.max(0,heat);
   localStorage.setItem("creatureState", JSON.stringify({
     lastVisit: now,
@@ -148,73 +162,106 @@ function animate(){
   }));
   
   let nowTime = Date.now();
-  let mouseIdle = nowTime - lastMouseMove > 3000; // 3 секунды вместо 2
+  let mouseIdle = nowTime - lastMouseMove > 3000;
+  
+  // === ОТСЛЕЖИВАНИЕ КОНЦА ВЗАИМОДЕЙСТВИЯ ===
+  if(interactionStartTime !== null && mouseIdle && !graceMode && !graceModeTriggered){
+    let interactionDuration = nowTime - interactionStartTime; // в миллисекундах
+    let interactionMinutes = interactionDuration / 1000 / 60;
+    
+    // Если взаимодействие длилось 3+ минуты
+    if(interactionMinutes >= 3){
+      // 30% шанс активировать режим спасибо
+      if(Math.random() < 0.3){
+        graceMode = true;
+        graceModeStartTime = nowTime;
+        graceModeTriggered = true; // Только один раз за сессию
+      }
+    }
+    
+    // Сброс счётчика взаимодействия
+    interactionStartTime = null;
+  }
+  
+  // === РЕЖИМ "СПАСИБО" (grace mode) ===
+  if(graceMode){
+    let graceDuration = nowTime - graceModeStartTime;
+    let graceDurationSeconds = graceDuration / 1000;
+    
+    // Замираем на 2-3 секунды
+    if(graceDurationSeconds < 2.5){
+      // Режим спасибо активен
+      vx = 0;
+      vy = 0;
+      // Тепло немного повышается (как тепло благодарности)
+      heat = Math.min(100, heat + 5);
+    } else {
+      // Переходим обратно в нормальный режим
+      graceMode = false;
+      interactionStartTime = null;
+    }
+  }
   
   // === РАССТОЯНИЕ ДО КРАЯ ===
   let distToEdge = getDistanceToEdge(x, y, canvas.width, canvas.height);
-  let maxDist = Math.min(canvas.width, canvas.height) / 3; // "Зона комфорта" — треть экрана от центра
-  let edgeFactor = Math.max(0, 1 - distToEdge / maxDist); // 0 (в центре) до 1 (на краю)
+  let maxDist = Math.min(canvas.width, canvas.height) / 3;
+  let edgeFactor = Math.max(0, 1 - distToEdge / maxDist);
   
   // === ЛОГИКА ДВИЖЕНИЯ ===
-  if(mouseIdle && heat > 20){ // Блуждание срабатывает даже при heat > 20
-    // РЕЖИМ: Исследование
-    if(wanderTargetX === null){
-      // Выбираем новую точку для исследования
-      // 50% шанс посетить любимое место, 50% - случайное место
-      if(favoriteSpots.length > 0 && Math.random() < 0.5){
-        let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
-        wanderTargetX = spot.x;
-        wanderTargetY = spot.y;
-      } else {
-        wanderTargetX = Math.random() * canvas.width;
-        wanderTargetY = Math.random() * canvas.height;
+  if(!graceMode){ // Не двигаемся в режиме спасибо
+    if(mouseIdle && heat > 20){
+      // РЕЖИМ: Исследование
+      if(wanderTargetX === null){
+        if(favoriteSpots.length > 0 && Math.random() < 0.5){
+          let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
+          wanderTargetX = spot.x;
+          wanderTargetY = spot.y;
+        } else {
+          wanderTargetX = Math.random() * canvas.width;
+          wanderTargetY = Math.random() * canvas.height;
+        }
       }
-    }
 
-    let dx = wanderTargetX - x;
-    let dy = wanderTargetY - y;
+      let dx = wanderTargetX - x;
+      let dy = wanderTargetY - y;
 
-    // Ускорение зависит от близости к краю (ближе к краю — быстрее)
-    let acceleration = 0.001 + edgeFactor * 0.0005; // +50% при краю
-    vx += dx * acceleration;
-    vy += dy * acceleration;
+      let acceleration = 0.001 + edgeFactor * 0.0005;
+      vx += dx * acceleration;
+      vy += dy * acceleration;
 
-    // Если достигли цели — выбираем новую
-    if(Math.abs(dx) < 20 && Math.abs(dy) < 20){
-      wanderTargetX = null;
-      wanderTargetY = null;
-    }
-
-    vx *= 0.97;
-    vy *= 0.97;
-    x += vx;
-    y += vy;
-    
-  } else {
-    // РЕЖИМ: Успокоение и засыпание
-    if(heat < 20){
-      // ЗАСЫПАНИЕ: медленно возвращается в центр экрана + ДЫШИТ
-      x += (canvas.width/2 - x)*0.05;
-      y += (canvas.height/2 - y)*0.05;
-      vx=0; vy=0;
-    }
-    else if(heat < 60){
-      // ДРЕМОТА: лёгкое случайное движение
-      vx += (Math.random()-0.5)*0.2;
-      vy += (Math.random()-0.5)*0.2;
-      vx*=0.98; vy*=0.98;
-      x+=vx; y+=vy;
-    }
-    else{
-      // АКТИВНОСТЬ: следит за курсором
-      if(targetX!==null){
-        let dx=targetX-x;
-        let dy=targetY-y;
-        vx+=dx*0.002;
-        vy+=dy*0.002;
+      if(Math.abs(dx) < 20 && Math.abs(dy) < 20){
+        wanderTargetX = null;
+        wanderTargetY = null;
       }
-      vx*=0.97; vy*=0.97;
-      x+=vx; y+=vy;
+
+      vx *= 0.97;
+      vy *= 0.97;
+      x += vx;
+      y += vy;
+      
+    } else {
+      // РЕЖИМ: Успокоение и засыпание
+      if(heat < 20){
+        x += (canvas.width/2 - x)*0.05;
+        y += (canvas.height/2 - y)*0.05;
+        vx=0; vy=0;
+      }
+      else if(heat < 60){
+        vx += (Math.random()-0.5)*0.2;
+        vy += (Math.random()-0.5)*0.2;
+        vx*=0.98; vy*=0.98;
+        x+=vx; y+=vy;
+      }
+      else{
+        if(targetX!==null){
+          let dx=targetX-x;
+          let dy=targetY-y;
+          vx+=dx*0.002;
+          vy+=dy*0.002;
+        }
+        vx*=0.97; vy*=0.97;
+        x+=vx; y+=vy;
+      }
     }
   }
 
@@ -223,27 +270,28 @@ function animate(){
   if(y<0||y>canvas.height) vy*=-1;
 
   // === ЛОГИКА ЦВЕТА И ДЫХАНИЯ ===
-  pulse += 0.03;  // медленно, чтобы "дышал"
+  pulse += 0.03;
 
   let speed = Math.sqrt(vx*vx + vy*vy);
   let hue;
+  let sizeMultiplier = 1.0; // Для режима спасибо
 
-  if(speed > 1.5){
-    // Движение: плавный переход по радуге (вместо случайного мигания)
-    movementHue += speed * 0.5; // Скорость переходит в скорость смены цвета
+  if(graceMode){
+    // === РЕЖИМ СПАСИБО: мягкое золотое дыхание ===
+    hue = 45 + Math.sin(pulse * 1.5) * 5; // Мягкое золото (45°)
+    sizeMultiplier = 0.85 + Math.sin(pulse * 1.5) * 0.1; // Плавное пульсирование (0.75-0.95)
+  } else if(speed > 1.5){
+    // Движение: плавный переход по радуге
+    movementHue += speed * 0.5;
     hue = movementHue % 360;
   } else {
-    // Покой: медленно ползём по радуге с плавным переходом
+    // Покой: медленно ползём по радуге
     if(heat < 20){
-      // ЗАСЫПАНИЕ: холодный синий цвет (как во сне)
-      hue = 240 + Math.sin(pulse) * 10; // Плавное дыхание синим
+      // Засыпание: холодный синий (как во сне)
+      hue = 240 + Math.sin(pulse) * 10;
     } else {
-      // В центре: тёплые цвета (жёлтый-красный 0-60)
-      // На краю: холодные цвета (синий-фиолетовый 200-280)
-      let centerHue = 50 + (Math.sin(pulse) + 1) * 100; // 50-250 (всё радуга)
-      let edgeHue = 240; // Холодный синий на краю
-      
-      // Интерполируем между тёплым (центр) и холодным (край)
+      let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
+      let edgeHue = 240;
       hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
     }
   }
@@ -254,8 +302,8 @@ function animate(){
   // Отрисовка тела
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
   let stretch = Math.min(20, speed * 1.5);
-  let radiusX = baseRadius + stretch;
-  let radiusY = baseRadius - stretch*0.6;
+  let radiusX = (baseRadius + stretch) * sizeMultiplier;
+  let radiusY = (baseRadius - stretch*0.6) * sizeMultiplier;
 
   ctx.beginPath();
   ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI*2);
