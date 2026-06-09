@@ -110,7 +110,18 @@ canvas.addEventListener("touchmove",e=>{
 },{passive:false});
 
 canvas.addEventListener("mousemove",e=>{
-  interact(e.clientX,e.clientY);
+  interact(e.clientX,e.clientY){
+  targetX = clientX;
+  targetY = clientY;
+  heat += 15;
+
+lastMouseMove = Date.now();
+
+if(Math.random() < 0.1){
+    favoriteSpots.push({x: clientX, y: clientY});
+    if(favoriteSpots.length > 30) favoriteSpots.shift();
+  }
+};
 });
 
 // ===== ФУНКЦИЯ: Расстояние до края =====
