@@ -243,6 +243,7 @@ function animate(){
 
   let brightness = 40 + heat*0.3;
   ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
+console.log("Рисую в точке:", x, y, "Цвет:", hue);
 
   // Отрисовка тела
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
