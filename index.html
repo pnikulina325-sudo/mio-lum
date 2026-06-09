@@ -34,6 +34,7 @@ let wanderTargetY = null;
 let lastMouseMove = Date.now(); 
 let hueCycle = 0;
 let pulse = 0;
+let movementHue = 0; // Плавный переход цвета при движении
 
 // ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
@@ -208,8 +209,9 @@ function animate(){
   let hue;
 
   if(speed > 1.5){
-    // Полёт: случайный цвет каждый кадр (диско)
-    hue = Math.random() * 360;
+    // Движение: плавный переход по радуге (вместо случайного мигания)
+    movementHue += speed * 0.5; // Скорость переходит в скорость смены цвета
+    hue = movementHue % 360;
   } else {
     // Покой: медленно ползём по радуге с плавным переходом
     // В центре: тёплые цвета (жёлтый-красный 0-60)
