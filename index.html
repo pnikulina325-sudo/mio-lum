@@ -160,6 +160,7 @@ function animate(){
   if(mouseIdle && heat > 20){ // Блуждание срабатывает даже при heat > 20
     // РЕЖИМ: Исследование
   if(wanderTargetX === null){
+    console.log("выбираю цель");
 
   if(favoriteSpots.length > 0 && Math.random() < 0.5){
     let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
