@@ -140,7 +140,7 @@ function animate(){
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  heat-=0.02;
+  heat-=0.1; // УСКОРИЛИ остывание (было 0.02, теперь 0.1)
   heat=Math.max(0,heat);
   localStorage.setItem("creatureState", JSON.stringify({
     lastVisit: now,
@@ -193,7 +193,7 @@ function animate(){
   } else {
     // РЕЖИМ: Успокоение и засыпание
     if(heat < 20){
-      // ЗАСЫПАНИЕ: медленно возвращается в центр экрана
+      // ЗАСЫПАНИЕ: медленно возвращается в центр экрана + ДЫШИТ
       x += (canvas.width/2 - x)*0.05;
       y += (canvas.height/2 - y)*0.05;
       vx=0; vy=0;
@@ -222,7 +222,7 @@ function animate(){
   if(x<0||x>canvas.width) vx*=-1;
   if(y<0||y>canvas.height) vy*=-1;
 
-  // === ЛОГИКА ЦВЕТА ===
+  // === ЛОГИКА ЦВЕТА И ДЫХАНИЯ ===
   pulse += 0.03;  // медленно, чтобы "дышал"
 
   let speed = Math.sqrt(vx*vx + vy*vy);
@@ -234,13 +234,18 @@ function animate(){
     hue = movementHue % 360;
   } else {
     // Покой: медленно ползём по радуге с плавным переходом
-    // В центре: тёплые цвета (жёлтый-красный 0-60)
-    // На краю: холодные цвета (синий-фиолетовый 200-280)
-    let centerHue = 50 + (Math.sin(pulse) + 1) * 100; // 50-250 (всё радуга)
-    let edgeHue = 240; // Холодный синий на краю
-    
-    // Интерполируем между тёплым (центр) и холодным (край)
-    hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
+    if(heat < 20){
+      // ЗАСЫПАНИЕ: холодный синий цвет (как во сне)
+      hue = 240 + Math.sin(pulse) * 10; // Плавное дыхание синим
+    } else {
+      // В центре: тёплые цвета (жёлтый-красный 0-60)
+      // На краю: холодные цвета (синий-фиолетовый 200-280)
+      let centerHue = 50 + (Math.sin(pulse) + 1) * 100; // 50-250 (всё радуга)
+      let edgeHue = 240; // Холодный синий на краю
+      
+      // Интерполируем между тёплым (центр) и холодным (край)
+      hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
+    }
   }
 
   let brightness = 40 + heat*0.3;
