@@ -112,6 +112,17 @@ canvas.addEventListener("mousemove",e=>{
   interact(e.clientX,e.clientY);
 });
 
+// ===== ФУНКЦИЯ: Расстояние до края =====
+function getDistanceToEdge(x, y, width, height){
+  // Находим расстояние до ближайшего края
+  let distLeft = x;
+  let distRight = width - x;
+  let distTop = y;
+  let distBottom = height - y;
+  
+  return Math.min(distLeft, distRight, distTop, distBottom);
+}
+
 // ===== АНИМАЦИЯ =====
 function animate(){
   hueCycle += 0.5;
@@ -128,6 +139,11 @@ function animate(){
   let nowTime = Date.now();
   let mouseIdle = nowTime - lastMouseMove > 3000; // 3 секунды вместо 2
   
+  // === РАССТОЯНИЕ ДО КРАЯ ===
+  let distToEdge = getDistanceToEdge(x, y, canvas.width, canvas.height);
+  let maxDist = Math.min(canvas.width, canvas.height) / 3; // "Зона комфорта" — треть экрана от центра
+  let edgeFactor = Math.max(0, 1 - distToEdge / maxDist); // 0 (в центре) до 1 (на краю)
+  
   // === ЛОГИКА ДВИЖЕНИЯ ===
   if(mouseIdle && heat > 20){ // Блуждание срабатывает даже при heat > 20
     // РЕЖИМ: Исследование
@@ -140,8 +156,10 @@ function animate(){
     let dx = wanderTargetX - x;
     let dy = wanderTargetY - y;
 
-    vx += dx * 0.001; // Чуть более осторожная скорость
-    vy += dy * 0.001;
+    // Ускорение зависит от близости к краю (ближе к краю — быстрее)
+    let acceleration = 0.001 + edgeFactor * 0.0005; // +50% при краю
+    vx += dx * acceleration;
+    vy += dy * acceleration;
 
     // Если достигли цели — выбираем новую
     if(Math.abs(dx) < 20 && Math.abs(dy) < 20){
@@ -194,8 +212,13 @@ function animate(){
     hue = Math.random() * 360;
   } else {
     // Покой: медленно ползём по радуге с плавным переходом
-    // Переход: жёлтый (60) -> зелёный (120) -> синий (240) -> фиолетовый (300) -> жёлтый
-    hue = 50 + (Math.sin(pulse) + 1) * 100; 
+    // В центре: тёплые цвета (жёлтый-красный 0-60)
+    // На краю: холодные цвета (синий-фиолетовый 200-280)
+    let centerHue = 50 + (Math.sin(pulse) + 1) * 100; // 50-250 (всё радуга)
+    let edgeHue = 240; // Холодный синий на краю
+    
+    // Интерполируем между тёплым (центр) и холодным (край)
+    hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
   }
 
   let brightness = 40 + heat*0.3;
