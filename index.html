@@ -369,9 +369,6 @@ function animate(){
     hue = hue * (1 - graceProgress) + graceHue * graceProgress;
     sizeMultiplier = 1.0 - (0.15 * graceProgress);
   }
-  if(scaredLevel > 0.1 && mouseSpeed < 5){
-  hue = hue * (1 - scaredLevel) + 30 * scaredLevel;
-}
   ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
 
   let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
