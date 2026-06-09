@@ -6,34 +6,41 @@
 <style>
 body { margin:0; overflow:hidden; background:black; }
 canvas { display:block; }
+input {
+  position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+  padding:10px; font-size:16px; border-radius:20px; border:none; outline:none;
+  background:rgba(255,255,255,0.9); width:80%; max-width:400px; text-align:center;
+}
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
-<input type="text" id="moodInput" placeholder="Напиши Люму что-нибудь..." 
-style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-padding: 10px; font-size: 16px; border-radius: 20px; border: none; outline: none; 
-background: rgba(255,255,255,0.9); width: 80%; max-width: 400px; text-align: center;">
- <script type="module">
-  import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
-  
-  // Запускаем загрузку модели сразу
-  let classifier;
-  async function loadModel() {
+<input type="text" id="moodInput" placeholder="Напиши Люму что-нибудь...">
+<script type="module">
+import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
+
+let classifier = null;
+async function loadModel() {
+  try {
     console.log("Загружаю мозг для Люма...");
-    classifier = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+    classifier = await pipeline(
+      "sentiment-analysis",
+      "Xenova/distilbert-base-uncased-finetuned-sst-2-english"
+    );
     console.log("Мозг загружен! Люм готов чувствовать.");
+  } catch (err) {
+    console.error("Ошибка загрузки модели:", err);
   }
-  
-  loadModel();
-  
-  // Делаем classifier доступным для остального кода
-  window.getClassifier = () => classifier;
-</script> 
+}
+loadModel();
+
+window.getClassifier = () => classifier;
+</script>
+
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-  
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -42,9 +49,8 @@ window.addEventListener("resize", () => {
   canvas.height = window.innerHeight;
 });
 
-// ===== ПОЛОЖЕНИЕ =====
-let x = canvas.width/2;
-let y = canvas.height/2;
+let x = canvas.width / 2;
+let y = canvas.height / 2;
 let vx = 0;
 let vy = 0;
 let targetX = null;
@@ -56,16 +62,13 @@ let hueCycle = 0;
 let pulse = 0;
 let movementHue = 0;
 let mouseSpeed = 0;
-let isMobile = false;  
+let isMobile = false;
 let oldMouseX = null;
 let oldMouseY = null;
-  
 
-// ===== ПАМЯТЬ О ЛЮБИМЫХ МЕСТАХ =====
-let confidence= parseFloat(localStorage.getItem("lumConfidence"))||0.5;
+let confidence = parseFloat(localStorage.getItem("lumConfidence")) || 0.5;
 let favoriteSpots = [];
 
-// ===== ПАМЯТЬ О ВЗАИМОДЕЙСТВИИ =====
 let interactionStartTime = null;
 let lastInteractionHeat = 0;
 let graceMode = false;
@@ -73,7 +76,6 @@ let graceModeStartTime = null;
 let graceModeTriggered = false;
 let graceProgress = 0;
 
-// ===== НОВОЕ: ПОВЕДЕНИЕ И АКТИВНОСТЬ =====
 let behaviorMode = "wander";
 let behaviorTimer = 0;
 let behaviorDuration = 0;
@@ -84,202 +86,180 @@ let moodHue = null;
 let moodTimer = 0;
 const MOOD_DURATION = 300;
 
-// ===== ПАМЯТЬ =====
 let saved = JSON.parse(localStorage.getItem("creatureState")) || {};
 let now = Date.now();
-
 let lastVisit = saved.lastVisit || now;
 let prevHeat = saved.heat !== undefined ? saved.heat : 50;
 
 let hoursAway = (now - lastVisit) / 1000 / 60 / 60;
-
 let heat = prevHeat - hoursAway * 8;
 heat = Math.max(0, Math.min(100, heat));
 
-if(hoursAway > 0.2){
+if (hoursAway > 0.2) {
   x = Math.random() * canvas.width;
   y = Math.random() * canvas.height;
   heat += hoursAway * 5;
   heat = Math.max(0, Math.min(100, heat));
 }
 
-localStorage.setItem("creatureState", JSON.stringify({
-  lastVisit: now,
-  heat: heat
-}));
+function saveState() {
+  localStorage.setItem("creatureState", JSON.stringify({
+    lastVisit: Date.now(),
+    heat: heat
+  }));
+  localStorage.setItem("lumConfidence", String(confidence));
+}
 
-// ===== ЧАСТИЦЫ =====
 class Spark {
-  constructor(x,y){
-    this.x=x;
-    this.y=y;
-    this.vx=(Math.random()-0.5)*4;
-    this.vy=(Math.random()-0.5)*4;
-    this.life=60;
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = (Math.random() - 0.5) * 4;
+    this.vy = (Math.random() - 0.5) * 4;
+    this.life = 60;
   }
-  update(){
-    this.x+=this.vx;
-    this.y+=this.vy;
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
     this.life--;
   }
-  draw(){
-    ctx.globalAlpha = this.life/60;
+  draw() {
+    ctx.globalAlpha = this.life / 60;
     ctx.fillStyle = "white";
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 }
 
-let sparks=[];
+let sparks = [];
 
-function interact(px,py){
-  if(oldMouseX!==null){
+function interact(px, py) {
+  if (oldMouseX !== null) {
     let dx = px - oldMouseX;
     let dy = py - oldMouseY;
-    mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+    mouseSpeed = Math.sqrt(dx * dx + dy * dy);
   }
-  oldMouseX= px;
-  oldMouseY= py;
-  targetX=px;
-  targetY=py;
+  oldMouseX = px;
+  oldMouseY = py;
+
+  targetX = px;
+  targetY = py;
   lastMouseMove = Date.now();
-  
-  if(interactionStartTime === null){
+
+  if (interactionStartTime === null) {
     interactionStartTime = Date.now();
   }
+
   lastInteractionHeat = heat;
-  
-  heat+=10;
-  heat=Math.min(100,heat);
-  
-  if(Math.random() < 0.1){
-    favoriteSpots.push({x: px, y: py});
-    if(favoriteSpots.length > 30) favoriteSpots.shift();
+  heat = Math.min(100, heat + 10);
+
+  if (Math.random() < 0.1) {
+    favoriteSpots.push({ x: px, y: py });
+    if (favoriteSpots.length > 30) favoriteSpots.shift();
   }
-  
-  for(let i=0;i<4;i++){
-    sparks.push(new Spark(x,y));
+
+  for (let i = 0; i < 4; i++) {
+    sparks.push(new Spark(x, y));
   }
 }
 
-canvas.addEventListener("touchmove",e=>{
+canvas.addEventListener("touchmove", e => {
   e.preventDefault();
-  for(let t of e.touches){
-    isMobile = true
-    interact(t.clientX,t.clientY);
-  }
-},{passive:false});
+  isMobile = true;
+  for (let t of e.touches) interact(t.clientX, t.clientY);
+}, { passive: false });
 
-canvas.addEventListener("mousemove",e=>{
-  interact(e.clientX,e.clientY);
+canvas.addEventListener("mousemove", e => {
+  interact(e.clientX, e.clientY);
 });
 
-function getDistanceToEdge(x, y, width, height){
-  let distLeft = x;
-  let distRight = width - x;
-  let distTop = y;
-  let distBottom = height - y;
-  return Math.min(distLeft, distRight, distTop, distBottom);
+function getDistanceToEdge(x, y, width, height) {
+  return Math.min(x, width - x, y, height - y);
 }
 
-function pickNewBehavior(){
+function pickNewBehavior() {
   let modes = ["wander", "spiral", "hunt", "dance"];
   behaviorMode = modes[Math.floor(Math.random() * modes.length)];
   behaviorTimer = 0;
-  behaviorDuration = 300 + Math.random() * 400; // УВЕЛИЧИЛ: 5-10 секунд вместо 2-4
-  
-  if(behaviorMode === "hunt"){
+  behaviorDuration = 300 + Math.random() * 400;
+
+  if (behaviorMode === "hunt") {
     let edges = ["top", "bottom", "left", "right"];
     let edge = edges[Math.floor(Math.random() * edges.length)];
-    if(edge === "top") huntTarget = {x: canvas.width/2, y: 50};
-    else if(edge === "bottom") huntTarget = {x: canvas.width/2, y: canvas.height - 50};
-    else if(edge === "left") huntTarget = {x: 50, y: canvas.height/2};
-    else huntTarget = {x: canvas.width - 50, y: canvas.height/2};
+    if (edge === "top") huntTarget = { x: canvas.width / 2, y: 50 };
+    else if (edge === "bottom") huntTarget = { x: canvas.width / 2, y: canvas.height - 50 };
+    else if (edge === "left") huntTarget = { x: 50, y: canvas.height / 2 };
+    else huntTarget = { x: canvas.width - 50, y: canvas.height / 2 };
   }
-  
-  if(behaviorMode === "spiral"){
+
+  if (behaviorMode === "spiral") {
     spiralPhase = 0;
   }
 }
 
-function animate(){
-  hueCycle+= 0.5;
-  ctx.fillStyle="rgba(0,0,0,0.25)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+function animate() {
+  now = Date.now();
 
-  heat-=0.02; // ЗАМЕДЛИЛ: было 0.1, теперь 0.02 (в 5 раз медленнее)
-  heat=Math.max(0,heat);
-  localStorage.setItem("creatureState", JSON.stringify({
-    // Обновляем уверенность
-  if (mouseSpeed < 5) {
-      confidence += 0.0005;
-  } else {
-      confidence -= 0.002;
-  }
+  hueCycle += 0.5;
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  heat -= 0.02;
+  heat = Math.max(0, heat);
+
+  if (mouseSpeed < 5) confidence += 0.0005;
+  else confidence -= 0.002;
   confidence = Math.max(0, Math.min(1, confidence));
-  localStorage.setItem("lumConfidence", confidence);
-    lastVisit: now,
-    heat: heat
-  }));
- 
-  
+
+  saveState();
+
   let nowTime = Date.now();
   let mouseIdle = nowTime - lastMouseMove > 15000;
-  
-  if(interactionStartTime !== null && mouseIdle && !graceMode && !graceModeTriggered){
-    let interactionDuration = nowTime - interactionStartTime;
-    let interactionMinutes = interactionDuration / 1000 / 60;
-    
-    if(interactionMinutes >= 3){
-      if(Math.random() < 0.3){
-        graceMode = true;
-        graceModeStartTime = nowTime;
-        graceModeTriggered = true;
-        graceProgress = 0;
-      }
+
+  if (interactionStartTime !== null && mouseIdle && !graceMode && !graceModeTriggered) {
+    let interactionMinutes = (nowTime - interactionStartTime) / 1000 / 60;
+    if (interactionMinutes >= 3 && Math.random() < 0.3) {
+      graceMode = true;
+      graceModeStartTime = nowTime;
+      graceModeTriggered = true;
+      graceProgress = 0;
     }
-    
     interactionStartTime = null;
   }
-  
-  if(graceMode){
-    let graceDuration = nowTime - graceModeStartTime;
-    let graceDurationSeconds = graceDuration / 1000;
-    
-    if(graceDurationSeconds < 0.3){
-      graceProgress = graceDurationSeconds / 0.3;
-    } else if(graceDurationSeconds < 2.3){
-      graceProgress = 1.0;
-    } else if(graceDurationSeconds < 2.6){
-      graceProgress = 1.0 - ((graceDurationSeconds - 2.3) / 0.3);
-    } else {
+
+  if (graceMode) {
+    let graceDurationSeconds = (nowTime - graceModeStartTime) / 1000;
+    if (graceDurationSeconds < 0.3) graceProgress = graceDurationSeconds / 0.3;
+    else if (graceDurationSeconds < 2.3) graceProgress = 1.0;
+    else if (graceDurationSeconds < 2.6) graceProgress = 1.0 - ((graceDurationSeconds - 2.3) / 0.3);
+    else {
       graceMode = false;
       graceProgress = 0;
       interactionStartTime = null;
     }
-    
+
     vx = 0;
     vy = 0;
   } else {
     graceProgress *= 0.95;
   }
-  
+
   let distToEdge = getDistanceToEdge(x, y, canvas.width, canvas.height);
   let maxDist = Math.min(canvas.width, canvas.height) / 3;
   let edgeFactor = Math.max(0, 1 - distToEdge / maxDist);
-  
-  if(!graceMode){
-    if(mouseIdle && heat > 20){
+
+  if (!graceMode) {
+    if (mouseIdle && heat > 20) {
       behaviorTimer++;
-      if(behaviorTimer > behaviorDuration){
+      if (behaviorTimer > behaviorDuration) {
         pickNewBehavior();
       }
-      
-      if(behaviorMode === "wander"){
-        if(wanderTargetX === null){
-          if(favoriteSpots.length > 0 && Math.random() < 0.5){
+
+      if (behaviorMode === "wander") {
+        if (wanderTargetX === null) {
+          if (favoriteSpots.length > 0 && Math.random() < 0.5) {
             let spot = favoriteSpots[Math.floor(Math.random() * favoriteSpots.length)];
             wanderTargetX = spot.x;
             wanderTargetY = spot.y;
@@ -295,12 +275,11 @@ function animate(){
         vx += dx * acceleration;
         vy += dy * acceleration;
 
-        if(Math.abs(dx) < 20 && Math.abs(dy) < 20){
+        if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
           wanderTargetX = null;
           wanderTargetY = null;
         }
-      }
-      else if(behaviorMode === "spiral"){
+      } else if (behaviorMode === "spiral") {
         spiralPhase += 0.05;
         let spiralRadius = 100 + Math.sin(spiralPhase) * 50;
         let spiralX = x + Math.cos(spiralPhase) * spiralRadius;
@@ -309,20 +288,16 @@ function animate(){
         let dy = spiralY - y;
         vx += dx * 0.001;
         vy += dy * 0.001;
-      }
-      else if(behaviorMode === "hunt"){
+      } else if (behaviorMode === "hunt") {
         let dx = huntTarget.x - x;
         let dy = huntTarget.y - y;
         vx += dx * 0.002;
         vy += dy * 0.002;
-      }
-      else if(behaviorMode === "dance"){
+      } else if (behaviorMode === "dance") {
         let dancePhase = behaviorTimer * 0.02;
         let danceRadius = 80;
-        let danceCenterX = canvas.width/2;
-        let danceCenterY = canvas.height/2;
-        let targetDanceX = danceCenterX + Math.cos(dancePhase) * danceRadius;
-        let targetDanceY = danceCenterY + Math.sin(dancePhase) * danceRadius;
+        let targetDanceX = canvas.width / 2 + Math.cos(dancePhase) * danceRadius;
+        let targetDanceY = canvas.height / 2 + Math.sin(dancePhase) * danceRadius;
         let dx = targetDanceX - x;
         let dy = targetDanceY - y;
         vx += dx * 0.001;
@@ -333,65 +308,61 @@ function animate(){
       vy *= 0.97;
       x += vx;
       y += vy;
-      
     } else {
-      if(heat < 20){
-        x += (canvas.width/2 - x)*0.01;
-        y += (canvas.height/2 - y)*0.01;
-        vx=0; vy=0;
-      }
-      else if(heat < 60){
-        vx += (Math.random()-0.5)*0.2;
-        vy += (Math.random()-0.5)*0.2;
-        vx*=0.98; vy*=0.98;
-        x+=vx; y+=vy;
-      }
-      else{
-        if(targetX!==null){
-  let dx=targetX-x;
-  let dy=targetY-y;
-  
-  // Если двигаешь резко (скорость > 20), он пугается и отлетает
-  let threshold = isMobile ? 50 : 20; // На телефоне нужно дёрнуть сильнее, чтобы напугать
+      if (heat < 20) {
+        x += (canvas.width / 2 - x) * 0.01;
+        y += (canvas.height / 2 - y) * 0.01;
+        vx = 0;
+        vy = 0;
+      } else if (heat < 60) {
+        vx += (Math.random() - 0.5) * 0.2;
+        vy += (Math.random() - 0.5) * 0.2;
+        vx *= 0.98;
+        vy *= 0.98;
+        x += vx;
+        y += vy;
+      } else {
+        if (targetX !== null) {
+          let dx = targetX - x;
+          let dy = targetY - y;
+          let threshold = isMobile ? 50 : 20;
 
-if(mouseSpeed > threshold){
-  vx -= dx * 0.003;
-  vy -= dy * 0.003;
-} else {
-  vx += dx * 0.002;
-  vy += dy * 0.002;
-}
-}
-        vx*=0.97; vy*=0.97;
-        x+=vx; y+=vy;
+          if (mouseSpeed > threshold) {
+            vx -= dx * 0.003;
+            vy -= dy * 0.003;
+          } else {
+            vx += dx * 0.002;
+            vy += dy * 0.002;
+          }
+        }
+        vx *= 0.97;
+        vy *= 0.97;
+        x += vx;
+        y += vy;
       }
     }
   }
 
-  if(x < 0){ x = 0; vx *= -1; }
-  if(x > canvas.width){ x = canvas.width; vx *= -1; }
-  if(y < 0){ y = 0; vy *= -1; }
-  if(y > canvas.height){ y = canvas.height; vy *= -1; }
+  if (x < 0) { x = 0; vx *= -1; }
+  if (x > canvas.width) { x = canvas.width; vx *= -1; }
+  if (y < 0) { y = 0; vy *= -1; }
+  if (y > canvas.height) { y = canvas.height; vy *= -1; }
 
   pulse += 0.03;
   twinklePulse += 0.1;
 
-  let speed = Math.sqrt(vx*vx + vy*vy);
+  let speed = Math.sqrt(vx * vx + vy * vy);
   let hue = hueCycle % 360;
   let sizeMultiplier = 1.0;
-  let brightness = 40 + heat*0.3;
-  let hour = new Date().getHours();
-  let dayFactor = (hour >=6 && hour<20)? 1:0.6;
-  brightness *= dayFactor;
-
+  let brightness = (40 + heat * 0.3) * ((new Date().getHours() >= 6 && new Date().getHours() < 20) ? 1 : 0.6);
   let twinkle = 1 + Math.sin(twinklePulse) * 0.2;
-  
-  if(speed > 1.5){
+
+  if (speed > 1.5) {
     movementHue += speed * 0.5;
     hue = movementHue % 360;
-    brightness = (40 + heat*0.3) * twinkle;
+    brightness = (40 + heat * 0.3) * twinkle;
   } else {
-    if(heat < 50){
+    if (heat < 50) {
       hue = 240 + Math.sin(pulse) * 10;
     } else {
       let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
@@ -399,12 +370,14 @@ if(mouseSpeed > threshold){
       hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
     }
   }
-  if(moodTimer > 0){
-  let moodStrength = moodTimer / MOOD_DURATION;
-  hue = hue * (1 - moodStrength) + moodHue * moodStrength;
-  moodTimer--;
-}
-  if(graceProgress > 0){
+
+  if (moodTimer > 0) {
+    let moodStrength = moodTimer / MOOD_DURATION;
+    hue = hue * (1 - moodStrength) + moodHue * moodStrength;
+    moodTimer--;
+  }
+
+  if (graceProgress > 0) {
     let graceHue = 45 + Math.sin(pulse * 1.5) * 5;
     hue = hue * (1 - graceProgress) + graceHue * graceProgress;
     sizeMultiplier = 1.0 - (0.15 * graceProgress);
@@ -412,17 +385,17 @@ if(mouseSpeed > threshold){
 
   ctx.fillStyle = `hsl(${hue}, 100%, ${brightness}%)`;
 
-  let baseRadius = 30 + Math.sin(pulse)*(heat*0.15);
+  let baseRadius = 30 + Math.sin(pulse) * (heat * 0.15);
   let stretch = Math.min(20, speed * 1.5);
   let radiusX = (baseRadius + stretch) * sizeMultiplier;
-  let radiusY = (baseRadius - stretch*0.6) * sizeMultiplier;
+  let radiusY = (baseRadius - stretch * 0.6) * sizeMultiplier;
 
   ctx.beginPath();
-  ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI*2);
+  ctx.ellipse(x, y, radiusX, radiusY, Math.atan2(vy, vx), 0, Math.PI * 2);
   ctx.fill();
 
-  sparks=sparks.filter(s=>s.life>0);
-  for(let s of sparks){
+  sparks = sparks.filter(s => s.life > 0);
+  for (let s of sparks) {
     s.update();
     s.draw();
   }
@@ -430,31 +403,31 @@ if(mouseSpeed > threshold){
   requestAnimationFrame(animate);
 }
 animate();
- const input = document.getElementById('moodInput');
-input.addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter') {
-    const text = input.value;
+
+const input = document.getElementById("moodInput");
+input.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    const text = input.value.trim();
     if (!text) return;
-    
+
     console.log("Отправляю Люму:", text);
-    input.value = ''; // очистить поле
-    
-    const classifier = window.getClassifier();
+    input.value = "";
+
+    const classifier = window.getClassifier && window.getClassifier();
     if (classifier) {
-      const result = await classifier(text);
-      console.log("Реакция Люма:", result);
-    moodHue = (result[0].label === 'POSITIVE') ? 50 : 210;
-moodTimer = MOOD_DURATION;
-      
-      // ТУТ БУДЕТ МАГИЯ ЦВЕТА
-      // Пока просто напишем в консоль
+      try {
+        const result = await classifier(text);
+        console.log("Реакция Люма:", result);
+        moodHue = (result[0].label === "POSITIVE") ? 50 : 210;
+        moodTimer = MOOD_DURATION;
+      } catch (err) {
+        console.error("Ошибка классификации:", err);
+      }
+    } else {
+      console.log("Модель ещё загружается...");
     }
   }
 });
-</script>
- <script type="module">
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0-alpha.14";
-console.log("ЛЮМ ЗАГРУЗИЛ МОЗГ");
 </script>
 </body>
 </html>
