@@ -179,6 +179,7 @@ function pickNewBehavior(){
 }
 
 function animate(){
+  scaredLevel *= 0.98;
   hueCycle += 0.5;
   ctx.fillStyle="rgba(0,0,0,0.25)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
