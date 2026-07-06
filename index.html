@@ -351,24 +351,42 @@ function animate() {
   pulse += 0.03;
   twinklePulse += 0.1;
 
-  let speed = Math.sqrt(vx * vx + vy * vy);
-  let hue = hueCycle % 360;
+    let speed = Math.sqrt(vx * vx + vy * vy);
+  
+  // --- НОВЫЙ БЛОК ЦВЕТА ---
+  let baseHue;
+  
+  if (speed > 1.5) {
+    // Режим движения: цвет зависит от скорости
+    movementHue += speed * 0.5;
+    baseHue = movementHue % 360;
+  } else {
+    // Режим покоя: учитываем "тепло" и расстояние до края экрана
+    let distToEdge = getDistanceToEdge(x, y, canvas.width, canvas.height);
+    let maxDist = Math.min(canvas.width, canvas.height) / 4;
+    let edgeFactorLocal = 1 - Math.min(1, distToEdge / maxDist); // 0 в центре, 1 у стены
+
+    if (heat < 50) {
+      baseHue = 240 + Math.sin(pulse) * 10; // Холодный синий/голубой
+    } else {
+      let centerHue = 50 + (Math.sin(pulse) + 1) * 100; // Теплый центр (оранж/желт)
+      let edgeHue = 240; // Холодный край
+      baseHue = centerHue * (1 - edgeFactorLocal) + edgeHue * edgeFactorLocal;
+    }
+    
+    // === ДОБАВЛЯЕМ ХАОС У ГРАНИЦ ===
+    // Чем ближе к стене, тем сильнее дрожит оттенок
+    let chaos = Math.pow(edgeFactorLocal, 3) * 40; 
+    hue = baseHue + (Math.random() - 0.5) * 2 * chaos;
+  }
+
+  // Общие переменные для размера и яркости
   let sizeMultiplier = 1.0;
   let brightness = (40 + heat * 0.3) * ((new Date().getHours() >= 6 && new Date().getHours() < 20) ? 1 : 0.6);
   let twinkle = 1 + Math.sin(twinklePulse) * 0.2;
 
   if (speed > 1.5) {
-    movementHue += speed * 0.5;
-    hue = movementHue % 360;
     brightness = (40 + heat * 0.3) * twinkle;
-  } else {
-    if (heat < 50) {
-      hue = 240 + Math.sin(pulse) * 10;
-    } else {
-      let centerHue = 50 + (Math.sin(pulse) + 1) * 100;
-      let edgeHue = 240;
-      hue = centerHue * (1 - edgeFactor) + edgeHue * edgeFactor;
-    }
   }
 
   if (moodTimer > 0) {
@@ -480,6 +498,30 @@ input.addEventListener("keydown", (e) => {
     
     console.log(reaction.text); 
   }
+});
+  // ==========================================================
+// РЕАКЦИЯ НА ВЫХОД МЫШИ СО СТРАНИЦЫ (Window Events)
+// ==========================================================
+window.addEventListener('mouseleave', () => {
+  console.log("Пользователь ушел... Люм встревожен.");
+  
+  // Включаем режим тревоги: краснеем и долго горим этим цветом
+  moodHue = 0; // Красный цвет (тревога/опасность)
+  moodTimer = MOOD_DURATION * 2; // Держим этот цвет в 2 раза дольше обычного
+
+  // Заставляем его метаться по экрану, имитируя поиск
+  behaviorMode = "wander"; 
+  wanderTargetX = null; 
+  wanderTargetY = null; 
+});
+
+window.addEventListener('mouseenter', () => {
+  console.log("Пользователь вернулся. Люм успокаивается.");
+  
+  // Радуемся возвращению: греемся и светимся теплым цветом
+  heat = Math.min(100, heat + 20); 
+  moodHue = 50; // Теплый желтый/оранжевый
+  moodTimer = MOOD_DURATION;
 });
 </script>
 </body>
