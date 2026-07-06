@@ -406,51 +406,63 @@ animate();
 
 const input = document.getElementById("moodInput");
   // --- НАША НОВАЯ БИБЛИОТЕКА ОТВЕТОВ ---
-const lumResponses = [
-  {
-    keywords: ["привет", "здравствуй", "кукусик", "hello"],
-    moodHue: 50, // Теплый желтый/оранжевый (радость)
-    message: "*Сияет ярче*"
-  },
-  {
-    keywords: ["темно", "страшно", "боюсь", "scary"],
-    moodHue: 240, // Холодный синий (тревога/сочувствие)
-    message: "*Притухает и подплывает ближе*"
-  },
-  {
-    keywords: ["спасибо", "cool", "круто", "класс"],
-    moodHue: 120, // Салатовый (одобрение)
-    message: "*Довольно пульсирует*"
-  },
-  {
-    keywords: ["грустно", "одиноко", "плохо", "sad"],
-    moodHue: 220, // Фиолетовый (грусть)
-    message: "*Тихо мерцает рядом*"
-  }
+// ==========================================================
+// 1. БИБЛИОТЕКА ОТВЕТОВ (Куда заглядывает Люм)
+// ==========================================================
+const lumLibrary = [
+  { keywords: ["привет", "здравствуй", "кукусик", "hello"], hue: 50, text: "*Радостно пульсирует*" },
+  { keywords: ["пока", "до свидания", "bay", "sleep"], hue: 220, text: "*Медленно тускнеет* До встречи..." },
+  { keywords: ["спасибо", "cool", "круто", "класс"], hue: 100, text: "*Довольно мерцает*" },
+  { keywords: ["грустно", "одиноко", "плохо", "sad"], hue: 240, text: "*Тихо светится рядом*" },
+  { keywords: ["страшно", "боюсь", "dark", "темно"], hue: 260, text: "*Становится ярче, чтобы прогнать тени*" },
+  { keywords: ["ура", "получилось", "win", "yes"], hue: 40, text: "*Взрывается салютом из искр*" },
+  { keywords: ["сюда", "ко мне", "лети", "come"], action: () => { targetX = canvas.width / 2; targetY = canvas.height / 2; } },
+  { keywords: ["прячься", "уйди", "hide"], alpha: 0.1, text: "*Растворяется в темноте*" },
+  { keywords: ["танец", "танцуй", "dance"], action: () => { behaviorMode = "dance"; behaviorTimer = 0; } },
+  { keywords: ["кто", "что", "ты кто"], hue: 280, text: "Я — сгусток твоего внимания." },
+  { keywords: ["имя", "зовут"], hue: 50, text: "Меня зовут Люм. А тебя?" }
 ];
 
+
+// ==========================================================
+// 2. ФУНКЦИЯ ПОИСКА (Как он выбирает ответ)
+// ==========================================================
 function getSimpleResponse(text) {
   const lowerText = text.toLowerCase();
   
-  for (let response of lumResponses) {
-    for (let word of response.keywords) {
-      if (lowerText.includes(word)) {
-        return {
-          hue: response.moodHue,
-          timer: MOOD_DURATION, // Используем твою константу длительности
-          message: response.message
-        };
+  // Проходимся по всей библиотеке
+  for (let entry of lumLibrary) {
+    // Проверяем, есть ли хоть одно слово-ключ из массива во введенном тексте
+    if (entry.keywords.some(word => lowerText.includes(word))) {
+      
+      // Собираем результат для анимации
+      const result = {
+        hue: entry.hue !== null ? entry.hue : moodHue, 
+        timer: MOOD_DURATION,
+        text: entry.text || ""
+      };
+
+      // СРАЗУ выполняем действие, если оно прописано (например, лететь в центр)
+      if (entry.action && typeof entry.action === 'function') {
+        entry.action(); 
       }
+      
+      return result; // Нашли совпадение? Выходим!
     }
   }
   
-  // Если ничего не подошло - нейтральная реакция
+  // Если ни одно слово не подошло
   return {
-    hue: 180, // Голубой по умолчанию
-    timer: Math.floor(MOOD_DURATION / 2), // Короткий импульс
-    message: "*Мягко светится*"
+    hue: 180,
+    timer: Math.floor(MOOD_DURATION / 2),
+    text: "*Мягко светится*"
   };
 }
+
+
+// ==========================================================
+// 3. ОБРАБОТЧИК ТЕКСТА (Что происходит при нажатии Enter)
+// ==========================================================
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const text = input.value.trim();
@@ -459,15 +471,14 @@ input.addEventListener("keydown", (e) => {
     console.log("Ты говоришь Люму:", text);
     input.value = "";
     
-    // УБРАЛИ НЕЙРОСЕТЬ, ДОБАВИЛИ СВОЮ ЛОГИКУ
+    // Вызываем нашу функцию-поисковик
     const reaction = getSimpleResponse(text);
     
-    // Применяем результат к глобальным переменным анимации
+    // Передаем данные в глобальную анимацию
     moodHue = reaction.hue;
     moodTimer = reaction.timer;
     
-    // Опционально: вывод сообщения в консоль для отладки
-    console.log(reaction.message); 
+    console.log(reaction.text); 
   }
 });
 </script>
