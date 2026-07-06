@@ -405,27 +405,69 @@ function animate() {
 animate();
 
 const input = document.getElementById("moodInput");
-input.addEventListener("keydown", async (e) => {
+  // --- НАША НОВАЯ БИБЛИОТЕКА ОТВЕТОВ ---
+const lumResponses = [
+  {
+    keywords: ["привет", "здравствуй", "кукусик", "hello"],
+    moodHue: 50, // Теплый желтый/оранжевый (радость)
+    message: "*Сияет ярче*"
+  },
+  {
+    keywords: ["темно", "страшно", "боюсь", "scary"],
+    moodHue: 240, // Холодный синий (тревога/сочувствие)
+    message: "*Притухает и подплывает ближе*"
+  },
+  {
+    keywords: ["спасибо", "cool", "круто", "класс"],
+    moodHue: 120, // Салатовый (одобрение)
+    message: "*Довольно пульсирует*"
+  },
+  {
+    keywords: ["грустно", "одиноко", "плохо", "sad"],
+    moodHue: 220, // Фиолетовый (грусть)
+    message: "*Тихо мерцает рядом*"
+  }
+];
+
+function getSimpleResponse(text) {
+  const lowerText = text.toLowerCase();
+  
+  for (let response of lumResponses) {
+    for (let word of response.keywords) {
+      if (lowerText.includes(word)) {
+        return {
+          hue: response.moodHue,
+          timer: MOOD_DURATION, // Используем твою константу длительности
+          message: response.message
+        };
+      }
+    }
+  }
+  
+  // Если ничего не подошло - нейтральная реакция
+  return {
+    hue: 180, // Голубой по умолчанию
+    timer: Math.floor(MOOD_DURATION / 2), // Короткий импульс
+    message: "*Мягко светится*"
+  };
+}
+input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const text = input.value.trim();
     if (!text) return;
 
-    console.log("Отправляю Люму:", text);
+    console.log("Ты говоришь Люму:", text);
     input.value = "";
-
-    const classifier = window.getClassifier && window.getClassifier();
-    if (classifier) {
-      try {
-        const result = await classifier(text);
-        console.log("Реакция Люма:", result);
-        moodHue = (result[0].label === "POSITIVE") ? 50 : 210;
-        moodTimer = MOOD_DURATION;
-      } catch (err) {
-        console.error("Ошибка классификации:", err);
-      }
-    } else {
-      console.log("Модель ещё загружается...");
-    }
+    
+    // УБРАЛИ НЕЙРОСЕТЬ, ДОБАВИЛИ СВОЮ ЛОГИКУ
+    const reaction = getSimpleResponse(text);
+    
+    // Применяем результат к глобальным переменным анимации
+    moodHue = reaction.hue;
+    moodTimer = reaction.timer;
+    
+    // Опционально: вывод сообщения в консоль для отладки
+    console.log(reaction.message); 
   }
 });
 </script>
